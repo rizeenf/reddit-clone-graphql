@@ -1,42 +1,8 @@
-import { User } from "../entities/User";
-import { ContextType } from "src/types";
-import {
-  Arg,
-  Ctx,
-  Field,
-  InputType,
-  Mutation,
-  ObjectType,
-  Resolver,
-} from "type-graphql";
 import argon2 from "argon2";
-
-@InputType()
-class UsernamePasswordInput {
-  @Field()
-  username!: string;
-
-  @Field()
-  password!: string;
-}
-
-@ObjectType()
-class ErrorField {
-  @Field()
-  field: string;
-
-  @Field()
-  message: string;
-}
-
-@ObjectType()
-class UserResponse {
-  @Field(() => [ErrorField], { nullable: true })
-  errors?: ErrorField[];
-
-  @Field(() => User, { nullable: true })
-  user?: User;
-}
+import { ContextType } from "../types";
+import { Arg, Ctx, Mutation, Resolver } from "type-graphql";
+import { User } from "../entities/User";
+import { UserResponse, UsernamePasswordInput } from "./userInputOutputResolver";
 
 @Resolver()
 export class UserResolvers {
@@ -46,12 +12,47 @@ export class UserResolvers {
     @Ctx() { em }: ContextType
   ): Promise<UserResponse> {
     const hashedPassword = await argon2.hash(input.password);
+
+    if (input.password.length <= 2) {
+      return {
+        errors: [
+          {
+            field: "Password",
+            message: "Must be at least 3 characters.",
+          },
+        ],
+      };
+    }
+    if (input.username.length <= 2) {
+      return {
+        errors: [
+          {
+            field: "Username",
+            message: "Must be at least 3 characters.",
+          },
+        ],
+      };
+    }
     const user = em.create(User, {
       username: input.username,
       password: hashedPassword,
     });
 
-    await em.persistAndFlush(user);
+    try {
+      await em.persistAndFlush(user);
+    } catch (error) {
+      if (error.code === "23505" || error.detail.includes("already exists")) {
+        return {
+          errors: [
+            {
+              field: "username",
+              message: "Already registered.",
+            },
+          ],
+        };
+      }
+    }
+
     return {
       user,
     };
