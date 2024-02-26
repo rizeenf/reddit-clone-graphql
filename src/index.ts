@@ -9,6 +9,12 @@ import { HelloResolvers } from "./resolvers/helloResolvers";
 import { PostResolvers } from "./resolvers/postResolvers";
 import { UserResolvers } from "./resolvers/userResolvers";
 
+import RedisStore from "connect-redis";
+import session from "express-session";
+import redis from "redis";
+
+// Initialize client.
+
 const main = async () => {
   // Postgres connection
   const orm = await MikroORM.init(mikroConfig);
@@ -17,12 +23,35 @@ const main = async () => {
   // Server connection
   const app = express();
 
+  const redisStore = RedisStore(session);
+  let redisClient = redis.createClient();
+
+  // Initialize session storage.
+  app.use(
+    session({
+      name: "red-session",
+      store: new redisStore({
+        client: redisClient,
+        disableTouch: true,
+      }),
+      cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 1, // 1 Year
+        httpOnly: true,
+        sameSite: "lax",
+        secure: __prod__,
+      },
+      resave: false, // required: force lightweight session keep alive (touch)
+      saveUninitialized: false, // recommended: only save session when data exists
+      secret: "awokaowkwaokawokaowkwaok",
+    })
+  );
+
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
       resolvers: [HelloResolvers, PostResolvers, UserResolvers],
       validate: false,
     }),
-    context: () => ({ em: orm.em }), // Descructure em from orm.em
+    context: ({ req, res }) => ({ em: orm.em, req, res }), // Descructure em from orm.em
   });
 
   apolloServer.applyMiddleware({ app });

@@ -21,6 +21,13 @@ const type_graphql_1 = require("type-graphql");
 const User_1 = require("../entities/User");
 const userInputOutputResolver_1 = require("./userInputOutputResolver");
 let UserResolvers = class UserResolvers {
+    async me({ req, em }) {
+        if (!req.session.userId) {
+            return null;
+        }
+        const user = await em.findOne(User_1.User, { id: req.session.userId });
+        return user;
+    }
     async registerUser(input, { em }) {
         const hashedPassword = await argon2_1.default.hash(input.password);
         if (input.password.length <= 2) {
@@ -66,7 +73,7 @@ let UserResolvers = class UserResolvers {
             user,
         };
     }
-    async loginUser(input, { em }) {
+    async loginUser(input, { em, req }) {
         const user = await em.findOne(User_1.User, { username: input.username });
         if (!user) {
             return {
@@ -89,12 +96,20 @@ let UserResolvers = class UserResolvers {
                 ],
             };
         }
+        req.session.userId = user.id;
         return {
             user,
         };
     }
 };
 exports.UserResolvers = UserResolvers;
+__decorate([
+    (0, type_graphql_1.Query)(() => User_1.User, { nullable: true }),
+    __param(0, (0, type_graphql_1.Ctx)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UserResolvers.prototype, "me", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => userInputOutputResolver_1.UserResponse),
     __param(0, (0, type_graphql_1.Arg)("input")),
