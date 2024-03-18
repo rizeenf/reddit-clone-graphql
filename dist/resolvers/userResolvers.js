@@ -22,13 +22,14 @@ const User_1 = require("../entities/User");
 const userInputOutputResolver_1 = require("./userInputOutputResolver");
 let UserResolvers = class UserResolvers {
     async me({ req, em }) {
+        console.log(req.session);
         if (!req.session.userId) {
             return null;
         }
         const user = await em.findOne(User_1.User, { id: req.session.userId });
         return user;
     }
-    async registerUser(input, { em }) {
+    async registerUser(input, { em, req }) {
         const hashedPassword = await argon2_1.default.hash(input.password);
         if (input.password.length <= 2) {
             return {
@@ -69,6 +70,7 @@ let UserResolvers = class UserResolvers {
                 };
             }
         }
+        req.session.userId = user.id;
         return {
             user,
         };

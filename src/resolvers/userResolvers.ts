@@ -8,6 +8,8 @@ import { UserResponse, UsernamePasswordInput } from "./userInputOutputResolver";
 export class UserResolvers {
   @Query(() => User, { nullable: true })
   async me(@Ctx() { req, em }: ContextType) {
+    console.log(req.session);
+
     if (!req.session.userId) {
       return null;
     }
@@ -19,7 +21,7 @@ export class UserResolvers {
   @Mutation(() => UserResponse)
   async registerUser(
     @Arg("input") input: UsernamePasswordInput,
-    @Ctx() { em }: ContextType
+    @Ctx() { em, req }: ContextType
   ): Promise<UserResponse> {
     const hashedPassword = await argon2.hash(input.password);
 
@@ -62,6 +64,8 @@ export class UserResolvers {
         };
       }
     }
+
+    req.session.userId = user.id;
 
     return {
       user,
