@@ -12,6 +12,7 @@ import { UserResolvers } from "./resolvers/userResolvers";
 import RedisStore from "connect-redis";
 import session from "express-session";
 import redis from "redis";
+import cors from "cors";
 
 // Initialize client.
 
@@ -25,6 +26,13 @@ const main = async () => {
 
   const redisStore = RedisStore(session);
   let redisClient = redis.createClient();
+
+  app.use(
+    cors({
+      origin: "http://localhost:3000",
+      credentials: true,
+    })
+  );
 
   // Initialize session storage.
   app.use(
@@ -54,7 +62,10 @@ const main = async () => {
     context: ({ req, res }) => ({ em: orm.em, req, res }), // Descructure em from orm.em
   });
 
-  apolloServer.applyMiddleware({ app });
+  apolloServer.applyMiddleware({
+    app,
+    cors: false,
+  });
 
   app.listen(4000, () => {
     console.log("Server started on http://localhost:4000");
